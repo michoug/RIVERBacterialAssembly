@@ -1,0 +1,33 @@
+############################################################
+# STEPS
+
+# Steps to be done
+steps: ["preprocessing"]
+#, "whokaryote"] 
+
+
+############################################################
+# INPUT
+# Directory where the workflow exists
+work_dir: "/mnt/c/Users/gmichoud/Desktop/Code/RIVERPacbioAssembly"
+
+# Directory to save the output to
+results_dir: "/mnt/c/Users/gmichoud/Desktop/Results"
+
+# Directory for all the conda environments
+env_dir: "/mnt/c/Users/gmichoud/Desktop/Code/RIVERPacbioAssembly/envs"
+
+# Directory for Reads
+reads_dir: "/mnt/c/Users/gmichoud/Desktop/fastq_pass/barcode02"
+
+# Number of cpus or threads to use
+threads: 4
+
+
+##############################
+# Parameters #
+subsample:
+  genome_size: 5.5m
+
+# get_length:
+#   threads: 28
