@@ -21,9 +21,9 @@ rule assembly:
         os.path.join(RESULTS_DIR, "rawReads/concatenated_reads.fastq.gz"),
         os.path.join(RESULTS_DIR, "filteredReads/filtered_reads.fastq"),
         expand(os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq"), number = NUMBERS),
-        expand(os.path.join(RESULTS_DIR, "flye/sample_{number}/assembly_graph.gfa"), number = ["01", "04", "07", "10"]),
-        expand(os.path.join(RESULTS_DIR, "canu/sample_{number}"), number = ["02", "05", "08", "11"]),
-        expand(os.path.join(RESULTS_DIR, "raven/sample_{number}.gfa"), number = ["03", "06", "09", "12"])
+        expand(os.path.join(RESULTS_DIR, "assemblies/fly_sample_{number}.gfa"), number = ["01", "04", "07", "10"]),
+        expand(os.path.join(RESULTS_DIR, "assemblies/canu_sample_{number}.gfa"), number = ["02", "05", "08", "11"]),
+        expand(os.path.join(RESULTS_DIR, "assemblies/raven_sample_{number}.gfa"), number = ["03", "06", "09", "12"])
     # output:
     #     touch("status/preprocessing.done")
 
@@ -67,8 +67,9 @@ rule flye:
     input:
         os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq")
     output:
-        gfa = os.path.join(RESULTS_DIR, "flye/sample_{number}/assembly_graph.gfa"),
-        fasta = os.path.join(RESULTS_DIR, "flye/sample_{number}/assembly.fasta")
+        folder = temp(directory(os.path.join(RESULTS_DIR, "flye/sample_{number}"))),
+        gfa = os.path.join(RESULTS_DIR, "assemblies/fly_sample_{number}.gfa"),
+        fasta = os.path.join(RESULTS_DIR, "assemblies/flye_sample_{number}.fasta")
     conda:
         os.path.join(ENV_DIR, "flye.yaml")
     log:
@@ -76,13 +77,20 @@ rule flye:
         err=os.path.join(RESULTS_DIR, "logs/flye_sample_{number}.err.log")
     threads: 8
     shell:
-        "(date && flye --nano-hq {input} --out-dir $(dirname {output.gfa}) --threads {threads} && date) 2> {log.err} > {log.out}"
+        """
+        (date && flye --nano-hq {input} --out-dir {output.folder} --threads {threads} && 
+        cp {output.folder}/assembly_graph.gfa {output.gfa} &&
+        cp {output.folder}/assembly.fasta {output.fasta} &&m
+        date) 2> {log.err} > {log.out}
+        """
 
 rule canu:
     input:
         os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq")
     output:
-        directory(os.path.join(RESULTS_DIR, "canu/sample_{number}"))
+        folder = directory(os.path.join(RESULTS_DIR, "canu/sample_{number}")),
+        gfa = os.path.join(RESULTS_DIR, "assemblies/canu_sample_{number}.gfa"),
+        fasta = os.path.join(RESULTS_DIR, "assemblies/canu_sample_{number}.fasta")
     params:
         config["subsample"]["genome_size"]
     conda:
@@ -92,14 +100,18 @@ rule canu:
         err=os.path.join(RESULTS_DIR, "logs/canu_sample_{number}.err.log")    
     threads: 8
     shell:
-        "(date && canu -p canu -d {output} genomeSize={params} -nanopore {input} -maxThreads={threads}  && date) 2> {log.err} > {log.out}"
+        """(date && canu -p canu -d {output.folder} genomeSize={params} -nanopore {input} -maxThreads={threads} && 
+        cp {output.folder}/canu.contigs.fasta {output.fasta} &&
+        cp {output.folder}/canu.contigs.gfa {output.gfa} && 
+        date) 2> {log.err} > {log.out}
+        """
 
 rule raven:
     input:
         os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq")
     output:
-        gfa=os.path.join(RESULTS_DIR, "raven/sample_{number}.gfa"),
-        fasta=os.path.join(RESULTS_DIR, "raven/sample_{number}.fasta")
+        gfa=os.path.join(RESULTS_DIR, "assemblies/raven_sample_{number}.gfa"),
+        fasta=os.path.join(RESULTS_DIR, "assemblies/raven_sample_{number}.fasta")
     log:
         out=os.path.join(RESULTS_DIR, "logs/raven_sample_{number}.out.log"),
         err=os.path.join(RESULTS_DIR, "logs/raven_sample_{number}.err.log")
