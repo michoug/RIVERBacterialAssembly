@@ -21,9 +21,10 @@ rule assembly:
         os.path.join(RESULTS_DIR, "rawReads/concatenated_reads.fastq.gz"),
         os.path.join(RESULTS_DIR, "filteredReads/filtered_reads.fastq"),
         expand(os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq"), number = NUMBERS),
-        expand(os.path.join(RESULTS_DIR, "assemblies/fly_sample_{number}.gfa"), number = ["01", "04", "07", "10"]),
-        expand(os.path.join(RESULTS_DIR, "assemblies/canu_sample_{number}.gfa"), number = ["02", "05", "08", "11"]),
-        expand(os.path.join(RESULTS_DIR, "assemblies/raven_sample_{number}.gfa"), number = ["03", "06", "09", "12"])
+        expand(os.path.join(RESULTS_DIR, "assemblies/flye_sample_{number}.fasta"), number = ["01", "04", "07", "10"]),
+        expand(os.path.join(RESULTS_DIR, "assemblies/canu_sample_{number}.fasta"), number = ["02", "05", "08", "11"]),
+        expand(os.path.join(RESULTS_DIR, "assemblies/raven_sample_{number}.fasta"), number = ["03", "06", "09", "12"]),
+        os.path.join(RESULTS_DIR, "stats/stats_assemblies.txt")
     # output:
     #     touch("status/preprocessing.done")
 
@@ -52,23 +53,23 @@ rule subsample:
     input:
         os.path.join(RESULTS_DIR, "filteredReads/filtered_reads.fastq")
     output:
-        directory(os.path.join(RESULTS_DIR, "subsampledReads/"))
+        expand(os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq"), number = NUMBERS)
     conda:
         os.path.join(ENV_DIR, "trycycler.yaml")
     params:
-        config["subsample"]["genome_size"]
+        folder = os.path.join(RESULTS_DIR, "subsampledReads"),
+        size = config["subsample"]["genome_size"]
     log:
         out=os.path.join(RESULTS_DIR, "logs/subsample.out.log"),
         err=os.path.join(RESULTS_DIR, "logs/subsample.err.log")
     shell:
-        "(date && trycycler subsample --reads {input} --out_dir {output} --genome_size {params} --min_read_depth 20 && date) 2> {log.err} > {log.out}"
+        "(date && trycycler subsample --reads {input} --out_dir {params.folder} --genome_size {params.size} --min_read_depth 20 && date) 2> {log.err} > {log.out}"
 
 rule flye:
     input:
         os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq")
     output:
         folder = temp(directory(os.path.join(RESULTS_DIR, "flye/sample_{number}"))),
-        gfa = os.path.join(RESULTS_DIR, "assemblies/fly_sample_{number}.gfa"),
         fasta = os.path.join(RESULTS_DIR, "assemblies/flye_sample_{number}.fasta")
     conda:
         os.path.join(ENV_DIR, "flye.yaml")
@@ -79,8 +80,7 @@ rule flye:
     shell:
         """
         (date && flye --nano-hq {input} --out-dir {output.folder} --threads {threads} && 
-        cp {output.folder}/assembly_graph.gfa {output.gfa} &&
-        cp {output.folder}/assembly.fasta {output.fasta} &&m
+        cp {output.folder}/assembly.fasta {output.fasta} && 
         date) 2> {log.err} > {log.out}
         """
 
@@ -88,8 +88,7 @@ rule canu:
     input:
         os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq")
     output:
-        folder = directory(os.path.join(RESULTS_DIR, "canu/sample_{number}")),
-        gfa = os.path.join(RESULTS_DIR, "assemblies/canu_sample_{number}.gfa"),
+        folder = temp(directory(os.path.join(RESULTS_DIR, "canu/sample_{number}"))),
         fasta = os.path.join(RESULTS_DIR, "assemblies/canu_sample_{number}.fasta")
     params:
         config["subsample"]["genome_size"]
@@ -102,7 +101,6 @@ rule canu:
     shell:
         """(date && canu -p canu -d {output.folder} genomeSize={params} -nanopore {input} -maxThreads={threads} && 
         cp {output.folder}/canu.contigs.fasta {output.fasta} &&
-        cp {output.folder}/canu.contigs.gfa {output.gfa} && 
         date) 2> {log.err} > {log.out}
         """
 
@@ -110,7 +108,6 @@ rule raven:
     input:
         os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq")
     output:
-        gfa=os.path.join(RESULTS_DIR, "assemblies/raven_sample_{number}.gfa"),
         fasta=os.path.join(RESULTS_DIR, "assemblies/raven_sample_{number}.fasta")
     log:
         out=os.path.join(RESULTS_DIR, "logs/raven_sample_{number}.out.log"),
@@ -119,4 +116,20 @@ rule raven:
         os.path.join(ENV_DIR, "raven.yaml")
     threads: 8
     shell:
-        "(date && raven -F {output.gfa} --threads 8 --disable-checkpoints {input} > {output.fasta} && date) 2> {log.err} > {log.out}"
+        "(date && raven --threads 8 --disable-checkpoints {input} > {output.fasta} && date) 2> {log.err} > {log.out}"
+
+
+rule getStats:
+    input:
+        raven = expand(rules.raven.output.fasta,number = ["03", "06", "09", "12"]),
+        canu = expand(rules.canu.output.fasta, number = ["02", "05", "08", "11"]),
+        flye = expand(rules.flye.output.fasta,number = ["01", "04", "07", "10"])
+    output:
+        os.path.join(RESULTS_DIR, "stats/stats_assemblies.txt")
+    conda:
+        os.path.join(ENV_DIR, "seqkit.yaml")
+    threads: 1
+    shell:
+        "seqkit stats -T -a {input.raven} {input.canu} {input.flye} > {output}"
+
+
