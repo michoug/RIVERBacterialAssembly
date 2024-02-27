@@ -18,7 +18,7 @@ results_dir: "/mnt/c/Users/gmichoud/Desktop/Results"
 env_dir: "/mnt/c/Users/gmichoud/Desktop/Code/RIVERPacbioAssembly/envs"
 
 # Directory for Reads
-reads_dir: "/mnt/c/Users/gmichoud/Desktop/fastq_pass/barcode02"
+reads_dir: "/mnt/c/Users/gmichoud/Desktop/fastq_pass/barcode11"
 
 # Number of cpus or threads to use
 threads: 4

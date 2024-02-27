@@ -41,7 +41,7 @@ rule filter:
     output:
         os.path.join(RESULTS_DIR, "filteredReads/filtered_reads.fastq")
     conda:
-        "envs/filtlong.yaml"
+        os.path.join(ENV_DIR, "filtlong.yaml")
     shell:
         "filtlong --min_length 2000 --keep_percent 90 {input} > {output}"
 
@@ -51,7 +51,7 @@ rule subsample:
     output:
         os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq")
     conda:
-        "envs/trycycler.yaml"
+        os.path.join(ENV_DIR, "trycycler.yaml")
     params:
         config["subsample"]["genome_size"]
     shell:
@@ -64,7 +64,7 @@ rule flye:
         gfa = os.path.join(RESULTS_DIR, "flye/sample_{number}/assembly_graph.gfa"),
         fasta = os.path.join(RESULTS_DIR, "flye/sample_{number}/assembly.fasta")
     conda:
-        "envs/flye.yaml"
+        os.path.join(ENV_DIR, "flye.yaml")
     threads: 8
     shell:
         "flye --nano-hq {input} --out-dir $(dirname {output.gfa}) --threads {threads}"
@@ -77,7 +77,7 @@ rule canu:
     params:
         config["subsample"]["genome_size"]
     conda:
-        "envs/canu.yaml"
+        os.path.join(ENV_DIR, "canu.yaml")
     threads: 8
     shell:
         "canu -p canu -d {output} genomeSize={params} -nanopore {input} -maxThreads={threads}"
@@ -89,7 +89,7 @@ rule raven:
         gfa=os.path.join(RESULTS_DIR, "raven/sample_{number}.gfa"),
         fasta=os.path.join(RESULTS_DIR, "raven/sample_{number}.fasta")
     conda:
-        "envs/raven.yaml"
+        os.path.join(ENV_DIR, "raven.yaml")
     threads: 8
     shell:
         "raven -F {output.gfa} --output {output.gfa} --threads 8 --disable-checkpoints {input} > {output.fasta}"

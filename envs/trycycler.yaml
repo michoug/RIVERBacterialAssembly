@@ -1,0 +1,7 @@
+name: trycycler
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - python=3.8
+  - trycycler=0.5.4
