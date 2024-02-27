@@ -42,20 +42,26 @@ rule filter:
         os.path.join(RESULTS_DIR, "filteredReads/filtered_reads.fastq")
     conda:
         os.path.join(ENV_DIR, "filtlong.yaml")
+    log:
+        out=os.path.join(RESULTS_DIR, "logs/filter.out.log"),
+        err=os.path.join(RESULTS_DIR, "logs/filter.err.log")
     shell:
-        "filtlong --min_length 2000 --keep_percent 90 {input} > {output}"
+        "(date && filtlong --min_length 2000 --keep_percent 90 {input} > {output} && date) 2> {log.err} > {log.out}"
 
 rule subsample:
     input:
         os.path.join(RESULTS_DIR, "filteredReads/filtered_reads.fastq")
     output:
-        os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq")
+        directory(os.path.join(RESULTS_DIR, "subsampledReads/"))
     conda:
         os.path.join(ENV_DIR, "trycycler.yaml")
     params:
         config["subsample"]["genome_size"]
+    log:
+        out=os.path.join(RESULTS_DIR, "logs/subsample.out.log"),
+        err=os.path.join(RESULTS_DIR, "logs/subsample.err.log")
     shell:
-        "trycycler subsample --reads {input} --out_dir $(dirname {output}) --genome_size {params}"
+        "(date && trycycler subsample --reads {input} --out_dir {output} --genome_size {params} --min_read_depth 20 && date) 2> {log.err} > {log.out}"
 
 rule flye:
     input:
@@ -65,9 +71,12 @@ rule flye:
         fasta = os.path.join(RESULTS_DIR, "flye/sample_{number}/assembly.fasta")
     conda:
         os.path.join(ENV_DIR, "flye.yaml")
+    log:
+        out=os.path.join(RESULTS_DIR, "logs/flye_sample_{number}.out.log"),
+        err=os.path.join(RESULTS_DIR, "logs/flye_sample_{number}.err.log")
     threads: 8
     shell:
-        "flye --nano-hq {input} --out-dir $(dirname {output.gfa}) --threads {threads}"
+        "(date && flye --nano-hq {input} --out-dir $(dirname {output.gfa}) --threads {threads} && date) 2> {log.err} > {log.out}"
 
 rule canu:
     input:
@@ -78,9 +87,12 @@ rule canu:
         config["subsample"]["genome_size"]
     conda:
         os.path.join(ENV_DIR, "canu.yaml")
+    log:
+        out=os.path.join(RESULTS_DIR, "logs/canu_sample_{number}.out.log"),
+        err=os.path.join(RESULTS_DIR, "logs/canu_sample_{number}.err.log")    
     threads: 8
     shell:
-        "canu -p canu -d {output} genomeSize={params} -nanopore {input} -maxThreads={threads}"
+        "(date && canu -p canu -d {output} genomeSize={params} -nanopore {input} -maxThreads={threads}  && date) 2> {log.err} > {log.out}"
 
 rule raven:
     input:
@@ -88,8 +100,11 @@ rule raven:
     output:
         gfa=os.path.join(RESULTS_DIR, "raven/sample_{number}.gfa"),
         fasta=os.path.join(RESULTS_DIR, "raven/sample_{number}.fasta")
+    log:
+        out=os.path.join(RESULTS_DIR, "logs/raven_sample_{number}.out.log"),
+        err=os.path.join(RESULTS_DIR, "logs/raven_sample_{number}.err.log")
     conda:
         os.path.join(ENV_DIR, "raven.yaml")
     threads: 8
     shell:
-        "raven -F {output.gfa} --output {output.gfa} --threads 8 --disable-checkpoints {input} > {output.fasta}"
+        "(date && raven -F {output.gfa} --threads 8 --disable-checkpoints {input} > {output.fasta} && date) 2> {log.err} > {log.out}"
