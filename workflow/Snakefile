@@ -94,7 +94,7 @@ rule mini:
         gfa = os.path.join(RESULTS_DIR, "miniasm/sample_{number}.gfa"),
         fasta = os.path.join(RESULTS_DIR, "assemblies/miniasm_sample_{number}.fasta")
     params:
-        os.path.join()
+        os.path.join(WORK_DIR, "scripts/miniasm_and_minipolish.sh")
     conda:
         os.path.join(ENV_DIR, "miniasm.yaml")
     resources:
@@ -104,8 +104,8 @@ rule mini:
         err=os.path.join(RESULTS_DIR, "logs/miniasm_sample_{number}.err.log")    
     threads: 8
     shell:
-        """(date && miniasm_and_minipolish.sh {input} {threads} > {output.gfa}&& 
-        any2fasta {output.gfa} {output.fasta} &&
+        """(date && {params} {input} {threads} > {output.gfa}&& 
+        any2fasta {output.gfa} > {output.fasta} &&
         date) 2> {log.err} > {log.out}
         """
 
@@ -129,7 +129,7 @@ rule raven:
 rule getStats:
     input:
         raven = expand(rules.raven.output.fasta,number = ["03", "06", "09", "12"]),
-        canu = expand(rules.canu.output.fasta, number = ["02", "05", "08", "11"]),
+        mini = expand(rules.mini.output.fasta, number = ["02", "05", "08", "11"]),
         flye = expand(rules.flye.output.fasta,number = ["01", "04", "07", "10"])
     output:
         os.path.join(RESULTS_DIR, "stats/stats_assemblies.txt")
@@ -137,6 +137,6 @@ rule getStats:
         os.path.join(ENV_DIR, "seqkit.yaml")
     threads: 1
     shell:
-        "seqkit stats -T -a {input.raven} {input.canu} {input.flye} > {output}"
+        "seqkit stats -T -a {input.raven} {input.mini} {input.flye} > {output}"
 
 
