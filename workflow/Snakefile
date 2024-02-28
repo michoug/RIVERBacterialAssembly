@@ -22,11 +22,12 @@ rule assembly:
         os.path.join(RESULTS_DIR, "filteredReads/filtered_reads.fastq"),
         expand(os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq"), number = NUMBERS),
         expand(os.path.join(RESULTS_DIR, "assemblies/flye_sample_{number}.fasta"), number = ["01", "04", "07", "10"]),
-        expand(os.path.join(RESULTS_DIR, "assemblies/canu_sample_{number}.fasta"), number = ["02", "05", "08", "11"]),
+        expand(os.path.join(RESULTS_DIR, "assemblies/miniasm_sample_{number}.fasta"), number = ["02", "05", "08", "11"]),
         expand(os.path.join(RESULTS_DIR, "assemblies/raven_sample_{number}.fasta"), number = ["03", "06", "09", "12"]),
         os.path.join(RESULTS_DIR, "stats/stats_assemblies.txt")
     # output:
     #     touch("status/preprocessing.done")
+
 
 rule concatenate_reads:
 	input:
@@ -73,6 +74,8 @@ rule flye:
         fasta = os.path.join(RESULTS_DIR, "assemblies/flye_sample_{number}.fasta")
     conda:
         os.path.join(ENV_DIR, "flye.yaml")
+    resources:
+        time = "03:00:00"
     log:
         out=os.path.join(RESULTS_DIR, "logs/flye_sample_{number}.out.log"),
         err=os.path.join(RESULTS_DIR, "logs/flye_sample_{number}.err.log")
@@ -84,23 +87,25 @@ rule flye:
         date) 2> {log.err} > {log.out}
         """
 
-rule canu:
+rule mini:
     input:
         os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq")
     output:
-        folder = temp(directory(os.path.join(RESULTS_DIR, "canu/sample_{number}"))),
-        fasta = os.path.join(RESULTS_DIR, "assemblies/canu_sample_{number}.fasta")
+        gfa = os.path.join(RESULTS_DIR, "miniasm/sample_{number}.gfa"),
+        fasta = os.path.join(RESULTS_DIR, "assemblies/miniasm_sample_{number}.fasta")
     params:
-        config["subsample"]["genome_size"]
+        os.path.join()
     conda:
-        os.path.join(ENV_DIR, "canu.yaml")
+        os.path.join(ENV_DIR, "miniasm.yaml")
+    resources:
+        time = "03:00:00"
     log:
-        out=os.path.join(RESULTS_DIR, "logs/canu_sample_{number}.out.log"),
-        err=os.path.join(RESULTS_DIR, "logs/canu_sample_{number}.err.log")    
+        out=os.path.join(RESULTS_DIR, "logs/miniasm_sample_{number}.out.log"),
+        err=os.path.join(RESULTS_DIR, "logs/miniasm_sample_{number}.err.log")    
     threads: 8
     shell:
-        """(date && canu -p canu -d {output.folder} genomeSize={params} -nanopore {input} -maxThreads={threads} && 
-        cp {output.folder}/canu.contigs.fasta {output.fasta} &&
+        """(date && miniasm_and_minipolish.sh {input} {threads} > {output.gfa}&& 
+        any2fasta {output.gfa} {output.fasta} &&
         date) 2> {log.err} > {log.out}
         """
 
@@ -112,6 +117,8 @@ rule raven:
     log:
         out=os.path.join(RESULTS_DIR, "logs/raven_sample_{number}.out.log"),
         err=os.path.join(RESULTS_DIR, "logs/raven_sample_{number}.err.log")
+    resources:
+        time = "03:00:00"
     conda:
         os.path.join(ENV_DIR, "raven.yaml")
     threads: 8

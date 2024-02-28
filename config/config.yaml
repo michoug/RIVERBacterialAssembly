@@ -9,25 +9,25 @@ steps: ["preprocessing"]
 ############################################################
 # INPUT
 # Directory where the workflow exists
-work_dir: "/home/river/Desktop/Greg/MartinaGenomes/RIVERPacbioAssembly"
+work_dir: "/scratch/gmichoud/Martina/RIVERPacbioAssembly"
 
 # Directory to save the output to
-results_dir: "/home/river/Desktop/Greg/MartinaGenomes/Results"
+results_dir: "/scratch/gmichoud/Martina/Results"
 
 # Directory for all the conda environments
-env_dir: "/home/river/Desktop/Greg/MartinaGenomes/RIVERPacbioAssembly/envs"
+env_dir: "/scratch/gmichoud/Martina/RIVERPacbioAssembly/envs"
 
 # Directory for Reads
-reads_dir: "/home/river/Desktop/Greg/MartinaGenomes/fastq_pass/barcode11"
+reads_dir: "/scratch/gmichoud/Martina/fastq_pass/barcode11"
 
 # Number of cpus or threads to use
-threads: 20
+threads: 28
 
 
 ##############################
 # Parameters #
 subsample:
-  genome_size: 3.5m
+  genome_size: 4m
 
 # get_length:
 #   threads: 28
