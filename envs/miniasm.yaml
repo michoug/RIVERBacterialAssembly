@@ -1,8 +1,0 @@
-name: miniasm
-channels:
-  - bioconda
-  - conda-forge
-dependencies:
-  - any2fasta=0.4.2
-  - miniasm=0.3
-  - minipolish=0.1.3

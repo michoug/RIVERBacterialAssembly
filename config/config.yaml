@@ -28,5 +28,4 @@ threads: 28
 # Parameters #
 genome_size: 6.5m
 
-# get_length:
-#   threads: 28
+reads_size: 3000

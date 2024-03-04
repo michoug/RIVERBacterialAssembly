@@ -11,17 +11,13 @@ import pandas as pd
 include:
     "rules/init.smk"
 
-NUMBERS = ["01", "02", "03",
-    "04",  "05", "06",
-    "07", "08"]
 
 rule assembly:
     input:
         os.path.join(RESULTS_DIR, "rawReads/concatenated_reads.fastq.gz"),
         os.path.join(RESULTS_DIR, "filteredReads/filtered_reads.fastq"),
-        expand(os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq"), number = NUMBERS),
-        expand(os.path.join(RESULTS_DIR, "assemblies/flye_sample_{number}.fasta"), number = ["01", "02", "03", "04"]),
-        expand(os.path.join(RESULTS_DIR, "assemblies/raven_sample_{number}.fasta"), number = ["05", "06", "07", "08"]),
+        expand(os.path.join(RESULTS_DIR, "assemblies/flye.fasta")),
+        expand(os.path.join(RESULTS_DIR, "assemblies/raven.fasta"),
         os.path.join(RESULTS_DIR, "stats/stats_assemblies.txt")
     # output:
     #     touch("status/preprocessing.done")
@@ -42,57 +38,44 @@ rule filter:
         os.path.join(RESULTS_DIR, "filteredReads/filtered_reads.fastq")
     conda:
         os.path.join(ENV_DIR, "filtlong.yaml")
+    params:
+        reads_size = config["reads_size"]
     log:
         out=os.path.join(RESULTS_DIR, "logs/filter.out.log"),
         err=os.path.join(RESULTS_DIR, "logs/filter.err.log")
     shell:
-        "(date && filtlong --min_length 2000 --keep_percent 90 {input} > {output} && date) 2> {log.err} > {log.out}"
+        "(date && filtlong --min_length {params.reads_size} --keep_percent 90 {input} > {output} && date) 2> {log.err} > {log.out}"
 
-rule subsample:
-    input:
-        os.path.join(RESULTS_DIR, "filteredReads/filtered_reads.fastq")
-    output:
-        expand(os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq"), number = NUMBERS)
-    conda:
-        os.path.join(ENV_DIR, "trycycler.yaml")
-    params:
-        folder = os.path.join(RESULTS_DIR, "subsampledReads"),
-        size = config["genome_size"]
-    log:
-        out=os.path.join(RESULTS_DIR, "logs/subsample.out.log"),
-        err=os.path.join(RESULTS_DIR, "logs/subsample.err.log")
-    shell:
-        "(date && rm -r {params.folder} && trycycler subsample --count 8 --reads {input} --out_dir {params.folder} --genome_size {params.size} --min_read_depth 20 && date) 2> {log.err} > {log.out}"
 
 rule flye:
     input:
-        os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq")
+        rules.filter.output
     output:
-        folder = temp(directory(os.path.join(RESULTS_DIR, "flye/sample_{number}"))),
-        fasta = os.path.join(RESULTS_DIR, "assemblies/flye_sample_{number}.fasta")
+        folder = temp(directory(os.path.join(RESULTS_DIR, "flye/sample"))),
+        fasta = os.path.join(RESULTS_DIR, "assemblies/flye_pre.fasta")
     conda:
         os.path.join(ENV_DIR, "flye.yaml")
     resources:
-        time = "03:00:00"
+        time = "05:00:00"
     log:
-        out=os.path.join(RESULTS_DIR, "logs/flye_sample_{number}.out.log"),
-        err=os.path.join(RESULTS_DIR, "logs/flye_sample_{number}.err.log")
-    threads: 8
+        out=os.path.join(RESULTS_DIR, "logs/flye.out.log"),
+        err=os.path.join(RESULTS_DIR, "logs/flye.err.log")
+    threads: 16
     shell:
         """
-        (date && flye --nano-hq {input} --out-dir {output.folder} --threads {threads} && 
+        (date && flye --nano-raw {input} --out-dir {output.folder} --threads {threads} && 
         cp {output.folder}/assembly.fasta {output.fasta} && 
         date) 2> {log.err} > {log.out}
         """
 
 rule raven:
     input:
-        os.path.join(RESULTS_DIR, "subsampledReads/sample_{number}.fastq")
+        rules.filter.output
     output:
-        fasta=os.path.join(RESULTS_DIR, "assemblies/raven_sample_{number}.fasta")
+        fasta=os.path.join(RESULTS_DIR, "assemblies/raven_pre.fasta")
     log:
-        out=os.path.join(RESULTS_DIR, "logs/raven_sample_{number}.out.log"),
-        err=os.path.join(RESULTS_DIR, "logs/raven_sample_{number}.err.log")
+        out=os.path.join(RESULTS_DIR, "logs/raven.out.log"),
+        err=os.path.join(RESULTS_DIR, "logs/raven.err.log")
     resources:
         time = "03:00:00"
     conda:
@@ -104,8 +87,8 @@ rule raven:
 
 rule getStats:
     input:
-        raven = expand(rules.raven.output.fasta,number = ["05", "06", "07", "08"]),
-        flye = expand(rules.flye.output.fasta,number = ["01", "02", "03", "04"])
+        rules.raven.output.fasta,
+        rules.flye.output.fasta
     output:
         os.path.join(RESULTS_DIR, "stats/stats_assemblies.txt")
     conda:
