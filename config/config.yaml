@@ -26,6 +26,6 @@ threads: 28
 
 ##############################
 # Parameters #
-genome_size: 6.5m
+#genome_size: 6.5m
 
 reads_size: 3000

@@ -16,9 +16,12 @@ rule assembly:
     input:
         os.path.join(RESULTS_DIR, "rawReads/concatenated_reads.fastq.gz"),
         os.path.join(RESULTS_DIR, "filteredReads/filtered_reads.fastq"),
-        expand(os.path.join(RESULTS_DIR, "assemblies/flye.fasta")),
-        expand(os.path.join(RESULTS_DIR, "assemblies/raven.fasta"),
-        os.path.join(RESULTS_DIR, "stats/stats_assemblies.txt")
+        expand(os.path.join(RESULTS_DIR, "assemblies/flye_pre.fasta")),
+        expand(os.path.join(RESULTS_DIR, "assemblies/raven_pre.fasta")),
+        os.path.join(RESULTS_DIR, "stats/stats_assemblies.txt"),
+        expand(os.path.join(RESULTS_DIR, "assemblies/{assembly}_clean.fasta"), assembly = ["flye", "raven"]),
+        expand(os.path.join(RESULTS_DIR, "annotations/{assembly}"), assembly = ["flye", "raven"]),
+        os.path.join(RESULTS_DIR,"checkm2/quality_report.tsv")
     # output:
     #     touch("status/preprocessing.done")
 
@@ -85,10 +88,54 @@ rule raven:
         "(date && raven --threads 8 --disable-checkpoints {input} > {output.fasta} && date) 2> {log.err} > {log.out}"
 
 
+rule medaka:
+    input:
+        fasta=os.path.join(RESULTS_DIR, "assemblies/{assembly}_pre.fasta"),
+        reads=rules.filter.output
+    output:
+        fasta = os.path.join(RESULTS_DIR, "assemblies/{assembly}_clean.fasta"),
+        folder = temp(directory(os.path.join(RESULTS_DIR, "assemblies/{assembly}_medaka")))
+    conda:
+        os.path.join(ENV_DIR, "medaka.yaml")
+    resources:
+        time = "01:00:00"
+    log:
+        out=os.path.join(RESULTS_DIR, "logs/medaka_{assembly}.out.log"),
+        err=os.path.join(RESULTS_DIR, "logs/medaka_{assembly}.err.log")
+    threads: 10
+    shell:
+        "(date && medaka_consensus -i {input.reads} -d {input.fasta} -o {output.folder} -t {threads} && cp {output.folder}/consensus.fasta {output.fasta} && date) 2> {log.err} > {log.out}"
+
+rule ragtag:
+    input:
+        raven =  os.path.join(RESULTS_DIR, "assemblies/raven_clean.fasta"),
+        flye = os.path.join(RESULTS_DIR, "assemblies/flye_clean.fasta")
+    output:
+        raven= os.path.join(RESULTS_DIR, "assemblies_merge/raven_clean.fasta"),
+        flye = os.path.join(RESULTS_DIR, "assemblies_merge/flye_clean.fasta")
+    conda:
+        os.path.join(ENV_DIR, "ragtag.yaml")
+    threads: 2
+    resources:
+        time = "01:00:00"
+    log:
+        out=os.path.join(RESULTS_DIR, "logs/ragtag.out.log"),
+        err=os.path.join(RESULTS_DIR, "logs/ragtag.err.log")
+    shell:
+        """
+       (date && 
+       ragtag.py scaffold -u -o $(dirname {input.raven})/raven {input.flye} {input.raven} && 
+       ragtag.py scaffold -u -o $(dirname {input.raven})/flye {input.raven} {input.flye} &&
+       cp $(dirname {input.raven})/raven/ragtag.scaffold.fasta {output.raven} && 
+       cp $(dirname {input.raven})/flye/ragtag.scaffold.fasta {output.flye} && 
+       date ) 2> {log.err} > {log.out}
+       """
+
+
 rule getStats:
     input:
-        rules.raven.output.fasta,
-        rules.flye.output.fasta
+        raven = rules.ragtag.output.raven,
+        flye = rules.ragtag.output.flye
     output:
         os.path.join(RESULTS_DIR, "stats/stats_assemblies.txt")
     conda:
@@ -97,4 +144,38 @@ rule getStats:
     shell:
         "seqkit stats -T -a {input.raven} {input.flye} > {output}"
 
+rule bakta:
+    input:
+        os.path.join(RESULTS_DIR,"assemblies_merge/{assembly}_clean.fasta")
+    output:
+        directory(os.path.join(RESULTS_DIR, "annotations/{assembly}"))
+    conda:
+        os.path.join(ENV_DIR, "bakta.yaml")
+    threads:
+        10
+    resources:
+        time = "02:00:00"
+    log:
+        out=os.path.join(RESULTS_DIR, "logs/bakta_{assembly}.out.log"),
+        err=os.path.join(RESULTS_DIR, "logs/bakta_{assembly}.err.log")
+    shell:
+        "(date && bakta --db /work/river/Databases/Bakta/db/ --output {output} --keep-contig-headers --compliant --threads {threads} --force {input} && date) 2> {log.err} > {log.out}"
+
+
+rule checkm2:
+    input:
+        expand(os.path.join(RESULTS_DIR,"assemblies_merge/{assembly}_clean.fasta"), assembly = ["raven", "flye"])
+    output:
+        os.path.join(RESULTS_DIR,"checkm2/quality_report.tsv")
+    conda:
+        os.path.join(ENV_DIR, "checkm2.yaml")
+    threads:
+        10
+    resources:
+        time = "02:00:00"
+    log:
+        out=os.path.join(RESULTS_DIR, "logs/checkm2.out.log"),
+        err=os.path.join(RESULTS_DIR, "logs/checkm2.err.log")
+    shell:
+        "(date && checkm2 predict --database_path /work/river/Databases/checkm2/CheckM2_database/uniref100.KO.1.dmnd --output-directory $(dirname {output}) --threads {threads} --input {input} && date) 2> {log.err} > {log.out}"
 
