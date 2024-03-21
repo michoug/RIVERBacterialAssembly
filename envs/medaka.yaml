@@ -4,3 +4,4 @@ channels:
   - conda-forge
 dependencies:
   - medaka=1.11.3
+  - samtools=1.18

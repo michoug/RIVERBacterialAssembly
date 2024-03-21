@@ -98,7 +98,8 @@ rule medaka:
     conda:
         os.path.join(ENV_DIR, "medaka.yaml")
     resources:
-        time = "01:00:00"
+        time = "01:00:00",
+        memory = "50G"
     log:
         out=os.path.join(RESULTS_DIR, "logs/medaka_{assembly}.out.log"),
         err=os.path.join(RESULTS_DIR, "logs/medaka_{assembly}.err.log")
@@ -134,8 +135,8 @@ rule ragtag:
 
 rule getStats:
     input:
-        raven = rules.ragtag.output.raven,
-        flye = rules.ragtag.output.flye
+        raven = os.path.join(RESULTS_DIR, "assemblies/raven_clean.fasta"),
+        flye = os.path.join(RESULTS_DIR, "assemblies/flye_clean.fasta")
     output:
         os.path.join(RESULTS_DIR, "stats/stats_assemblies.txt")
     conda:
@@ -146,7 +147,7 @@ rule getStats:
 
 rule bakta:
     input:
-        os.path.join(RESULTS_DIR,"assemblies_merge/{assembly}_clean.fasta")
+        os.path.join(RESULTS_DIR,"assemblies/{assembly}_clean.fasta")
     output:
         directory(os.path.join(RESULTS_DIR, "annotations/{assembly}"))
     conda:
@@ -164,7 +165,7 @@ rule bakta:
 
 rule checkm2:
     input:
-        expand(os.path.join(RESULTS_DIR,"assemblies_merge/{assembly}_clean.fasta"), assembly = ["raven", "flye"])
+        expand(os.path.join(RESULTS_DIR,"assemblies/{assembly}_clean.fasta"), assembly = ["raven", "flye"])
     output:
         os.path.join(RESULTS_DIR,"checkm2/quality_report.tsv")
     conda:
@@ -177,5 +178,5 @@ rule checkm2:
         out=os.path.join(RESULTS_DIR, "logs/checkm2.out.log"),
         err=os.path.join(RESULTS_DIR, "logs/checkm2.err.log")
     shell:
-        "(date && checkm2 predict --database_path /work/river/Databases/checkm2/CheckM2_database/uniref100.KO.1.dmnd --output-directory $(dirname {output}) --threads {threads} --input {input} && date) 2> {log.err} > {log.out}"
+        "(date && checkm2 predict --force --database_path /work/river/Databases/checkm2/CheckM2_database/uniref100.KO.1.dmnd --output-directory $(dirname {output}) --threads {threads} --input {input} && date) 2> {log.err} > {log.out}"
 
