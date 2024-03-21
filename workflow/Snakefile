@@ -105,7 +105,8 @@ rule medaka:
         err=os.path.join(RESULTS_DIR, "logs/medaka_{assembly}.err.log")
     threads: 10
     shell:
-        "(date && medaka_consensus -i {input.reads} -d {input.fasta} -o {output.folder} -t {threads} && cp {output.folder}/consensus.fasta {output.fasta} && date) 2> {log.err} > {log.out}"
+        "(date && "
+        "medaka_consensus -x -i {input.reads} -d {input.fasta} -o {output.folder} -t {threads} && cp {output.folder}/consensus.fasta {output.fasta} && date) 2> {log.err} > {log.out}"
 
 rule ragtag:
     input:
