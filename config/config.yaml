@@ -1,12 +1,4 @@
 ############################################################
-# STEPS
-
-# Steps to be done
-steps: ["preprocessing"]
-#, "whokaryote"] 
-
-
-############################################################
 # INPUT
 # Directory where the workflow exists
 work_dir: "/scratch/gmichoud/Martina/RIVERPacbioAssembly"
@@ -29,3 +21,6 @@ threads: 28
 #genome_size: 6.5m
 
 reads_size: 3000
+
+bakta_db : "/work/river/Databases/checkm2/CheckM2_database/uniref100.KO.1.dmnd"
+checkm2_db : "/scratch/gmichoud/Martina/RIVERPacbioAssembly/checkm2_db"

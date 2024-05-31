@@ -22,8 +22,6 @@ rule assembly:
         expand(os.path.join(RESULTS_DIR, "assemblies/{assembly}_clean.fasta"), assembly = ["flye", "raven"]),
         expand(os.path.join(RESULTS_DIR, "annotations/{assembly}"), assembly = ["flye", "raven"]),
         os.path.join(RESULTS_DIR,"checkm2/quality_report.tsv")
-    # output:
-    #     touch("status/preprocessing.done")
 
 
 rule concatenate_reads:
@@ -108,30 +106,30 @@ rule medaka:
         "(date && "
         "medaka_consensus -x -i {input.reads} -d {input.fasta} -o {output.folder} -t {threads} && cp {output.folder}/consensus.fasta {output.fasta} && date) 2> {log.err} > {log.out}"
 
-rule ragtag:
-    input:
-        raven =  os.path.join(RESULTS_DIR, "assemblies/raven_clean.fasta"),
-        flye = os.path.join(RESULTS_DIR, "assemblies/flye_clean.fasta")
-    output:
-        raven= os.path.join(RESULTS_DIR, "assemblies_merge/raven_clean.fasta"),
-        flye = os.path.join(RESULTS_DIR, "assemblies_merge/flye_clean.fasta")
-    conda:
-        os.path.join(ENV_DIR, "ragtag.yaml")
-    threads: 2
-    resources:
-        time = "01:00:00"
-    log:
-        out=os.path.join(RESULTS_DIR, "logs/ragtag.out.log"),
-        err=os.path.join(RESULTS_DIR, "logs/ragtag.err.log")
-    shell:
-        """
-       (date && 
-       ragtag.py scaffold -u -o $(dirname {input.raven})/raven {input.flye} {input.raven} && 
-       ragtag.py scaffold -u -o $(dirname {input.raven})/flye {input.raven} {input.flye} &&
-       cp $(dirname {input.raven})/raven/ragtag.scaffold.fasta {output.raven} && 
-       cp $(dirname {input.raven})/flye/ragtag.scaffold.fasta {output.flye} && 
-       date ) 2> {log.err} > {log.out}
-       """
+# rule ragtag:
+#     input:
+#         raven =  os.path.join(RESULTS_DIR, "assemblies/raven_clean.fasta"),
+#         flye = os.path.join(RESULTS_DIR, "assemblies/flye_clean.fasta")
+#     output:
+#         raven= os.path.join(RESULTS_DIR, "assemblies_merge/raven_clean.fasta"),
+#         flye = os.path.join(RESULTS_DIR, "assemblies_merge/flye_clean.fasta")
+#     conda:
+#         os.path.join(ENV_DIR, "ragtag.yaml")
+#     threads: 2
+#     resources:
+#         time = "01:00:00"
+#     log:
+#         out=os.path.join(RESULTS_DIR, "logs/ragtag.out.log"),
+#         err=os.path.join(RESULTS_DIR, "logs/ragtag.err.log")
+#     shell:
+#         """
+#        (date && 
+#        ragtag.py scaffold -u -o $(dirname {input.raven})/raven {input.flye} {input.raven} && 
+#        ragtag.py scaffold -u -o $(dirname {input.raven})/flye {input.raven} {input.flye} &&
+#        cp $(dirname {input.raven})/raven/ragtag.scaffold.fasta {output.raven} && 
+#        cp $(dirname {input.raven})/flye/ragtag.scaffold.fasta {output.flye} && 
+#        date ) 2> {log.err} > {log.out}
+#        """
 
 
 rule getStats:
@@ -153,6 +151,8 @@ rule bakta:
         directory(os.path.join(RESULTS_DIR, "annotations/{assembly}"))
     conda:
         os.path.join(ENV_DIR, "bakta.yaml")
+    params:
+        config["bakta_db"]
     threads:
         10
     resources:
@@ -161,7 +161,7 @@ rule bakta:
         out=os.path.join(RESULTS_DIR, "logs/bakta_{assembly}.out.log"),
         err=os.path.join(RESULTS_DIR, "logs/bakta_{assembly}.err.log")
     shell:
-        "(date && bakta --db /work/river/Databases/Bakta/db/ --output {output} --keep-contig-headers --compliant --threads {threads} --force {input} && date) 2> {log.err} > {log.out}"
+        "(date && bakta --db {params} --output {output} --keep-contig-headers --compliant --threads {threads} --force {input} && date) 2> {log.err} > {log.out}"
 
 
 rule checkm2:
@@ -171,6 +171,8 @@ rule checkm2:
         os.path.join(RESULTS_DIR,"checkm2/quality_report.tsv")
     conda:
         os.path.join(ENV_DIR, "checkm2.yaml")
+    params:
+        config["checkm2_db"]
     threads:
         10
     resources:
@@ -179,5 +181,4 @@ rule checkm2:
         out=os.path.join(RESULTS_DIR, "logs/checkm2.out.log"),
         err=os.path.join(RESULTS_DIR, "logs/checkm2.err.log")
     shell:
-        "(date && checkm2 predict --force --database_path /work/river/Databases/checkm2/CheckM2_database/uniref100.KO.1.dmnd --output-directory $(dirname {output}) --threads {threads} --input {input} && date) 2> {log.err} > {log.out}"
-
+        "(date && checkm2 predict --force --database_path {params} --output-directory $(dirname {output}) --threads {threads} --input {input} && date) 2> {log.err} > {log.out}"
