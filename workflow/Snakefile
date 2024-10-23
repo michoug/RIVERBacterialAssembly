@@ -14,13 +14,13 @@ include:
 
 rule assembly:
     input:
-        os.path.join(RESULTS_DIR, "rawReads/concatenated_reads.fastq.gz"),
         expand(os.path.join(RESULTS_DIR, "assemblies/flye_pre.fasta")),
         expand(os.path.join(RESULTS_DIR, "assemblies/raven_pre.fasta")),
         os.path.join(RESULTS_DIR, "stats/stats_assemblies.txt"),
         expand(os.path.join(RESULTS_DIR, "assemblies/{assembly}_clean.fasta"), assembly = ["flye", "raven"]),
         expand(os.path.join(RESULTS_DIR, "annotations/{assembly}"), assembly = ["flye", "raven"]),
-        os.path.join(RESULTS_DIR,"checkm2/quality_report.tsv")
+        os.path.join(RESULTS_DIR,"checkm2/quality_report.tsv"),
+        os.path.join(RESULTS_DIR,"best_assembly.txt")
 
 
 rule concatenate_reads:
@@ -28,8 +28,10 @@ rule concatenate_reads:
 		expand(os.path.join(READS_DIR, "{reads}.fastq.gz"), reads = READS)
 	output:
 		temp(os.path.join(RESULTS_DIR, "rawReads/concatenated_reads.fastq.gz"))
+    # localrule: True
 	shell:
 		"cat {input} > {output}"
+
 
 # rule filter_fitlong:
 #     input:
@@ -67,7 +69,7 @@ rule filter_chopper:
     output:
         temp(os.path.join(RESULTS_DIR, "filteredReads/filtered_reads_chopper.fastq.gz"))
     log:
-        os.path.join(RESULTS_DIR, "logs/filter_reads.log")
+        os.path.join(RESULTS_DIR, "logs/filter_chopper.log")
     conda:
         os.path.join(ENV_DIR, "filter_reads.yaml")
     params:
@@ -212,3 +214,54 @@ rule checkm2:
         err=os.path.join(RESULTS_DIR, "logs/checkm2.err.log")
     shell:
         "(date && checkm2 predict --force --database_path {params} --output-directory $(dirname {output}) --threads {threads} --input {input} && date) 2> {log.err} > {log.out}"
+
+rule find_best_assembly:
+    input:
+        checkm2=rules.checkm2.output,
+        seqkit=rules.getStats.output
+    output:
+        os.path.join(RESULTS_DIR,"best_assembly.txt")
+    localrule: True
+    run:
+        import polars as pl
+        import re
+
+        checkm2 = pl.read_csv(input[0], separator="\t")
+        seqkit = pl.read_csv(input[1], separator="\t")
+
+        seqkit = pl.read_csv("stats_assemblies.txt", separator = "\t")
+
+        diff_comp = max(checkm2['Completeness'])-min(checkm2['Completeness'])
+        diff_contamination = max(checkm2['Contamination'])-min(checkm2['Contamination'])
+
+        genome_comp = max(checkm2['Completeness'])
+        genome_contamination = min(checkm2['Contamination'])
+        genome_size = max(checkm2['Genome_Size'])
+
+        seqkit = seqkit.with_columns([pl.col('file').str.extract(r'.*\/(.*).fasta').alias('Name')])
+
+        diff_contig = max(seqkit['num_seqs'])-min(seqkit['num_seqs'])
+
+        min_contig = min(seqkit['num_seqs'])
+        min_contig_name = seqkit.filter(pl.col('num_seqs') == min_contig)['Name'][0]
+
+        merged_df = checkm2.join(seqkit, on='Name', how='inner')
+
+        columns_to_keep = ['Name','Completeness','Contamination',
+                        'Genome_Size','num_seqs','Contig_N50',
+                        'GC_Content']
+
+        merged_df = merged_df.select(columns_to_keep)
+        merged_df = merged_df.rename({'num_seqs': 'Number_of_Contigs'})
+
+        if diff_comp >= 5:
+            final = merged_df.filter(pl.col('Completeness') == genome_comp)[0]
+        elif diff_contamination >= 1:
+            final = merged_df.filter(pl.col('Contamination') == genome_contamination)[0]
+        elif diff_contig > 0:
+            final = merged_df.filter(pl.col('Name') == min_contig_name)
+        else:
+            final = merged_df.filter(pl.col('Genome_Size') == genome_size)  
+
+        final.write_csv(output[0], separator="\t")
+

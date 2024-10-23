@@ -27,7 +27,7 @@ At the end, there will be two different assemblies for your genome, one from fly
 4. Create a new conda environment to install the snakemake dependencies:
 
 ```bash	
-conda env create -n snakemake_env -c conda-forge snakemake mamba
+conda env create -n snakemake_env -c conda-forge snakemake mamba polars
 ```
 
 5. Download the required databases: 
