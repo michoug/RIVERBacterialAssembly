@@ -6,7 +6,8 @@ This project uses Snakemake to assemble and annotate a bacterial genome from nan
 
 This workflow uses the following tools to assemble and annotate a bacterial genome:
 
-- [Filtlong](https://github.com/rrwick/Filtlong) (v0.2.1) for read filtering.
+- [Porechop](https://github.com/rrwick/Porechop)(v0.2.4) for adapter trimming.
+- [Chopper](https://github.com/wdecoster/chopper/)(v0.9.0) for read filtering.
 - [Flye](https://github.com/fenderglass/Flye) (v2.9.3) for genome assembly.
 - [raven](https://github.com/lbcb-sci/raven) (v1.8.3) for genome assembly.
 - [medaka](https://github.com/nanoporetech/medaka/) (v1.11.3) for polishing the assemblies.
@@ -59,12 +60,12 @@ To run the Snakemake workflow using `slurm`, execute the following command in yo
 
 ```bash
 conda activate snakemake_env
-snakemake -s workflow/Snakefile --configfile config/config.yaml --use-conda --rerun-incomplete --profile profile/ 
+snakemake -s workflow/Snakefile --configfile config/config.yaml --conda-prefix snakemake_envs --use-conda --rerun-incomplete --profile profile/ 
 ```
 
 Without `slurm`, you can run the workflow using the following command:
 
 ```bash
 conda activate snakemake_env
-snakemake -s workflow/Snakefile --configfile config/config.yaml --use-conda --rerun-incomplete
+snakemake -s workflow/Snakefile --configfile config/config.yaml --conda-prefix snakemake_envs --use-conda --rerun-incomplete
 ```

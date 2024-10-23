@@ -42,7 +42,6 @@ WORK_DIR = config["work_dir"]
 
 ##############################
 # Steps
-STEPS = config["steps"]
 
 
 ##############################

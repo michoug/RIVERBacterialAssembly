@@ -1,16 +1,16 @@
 ############################################################
 # INPUT
 # Directory where the workflow exists
-work_dir: "/scratch/gmichoud/Martina/RIVERPacbioAssembly"
+work_dir: "/scratch/gmichoud/Ramona_Nanopore/RIVERBacterialAssembly"
 
 # Directory to save the output to
-results_dir: "/scratch/gmichoud/Martina/Results/barcode01"
+results_dir: "/scratch/gmichoud/Ramona_Nanopore/Results/"
 
 # Directory for all the conda environments
-env_dir: "/scratch/gmichoud/Martina/RIVERPacbioAssembly/envs"
+env_dir: "/scratch/gmichoud/Ramona_Nanopore/RIVERBacterialAssembly/envs"
 
 # Directory for Reads
-reads_dir: "/scratch/gmichoud/Martina/fastq_pass/barcode01"
+reads_dir: "/scratch/gmichoud/Ramona_Nanopore/reads"
 
 # Number of cpus or threads to use
 threads: 28
@@ -22,5 +22,5 @@ threads: 28
 
 reads_size: 3000
 
-bakta_db : "/work/river/Databases/checkm2/CheckM2_database/uniref100.KO.1.dmnd"
-checkm2_db : "/scratch/gmichoud/Martina/RIVERPacbioAssembly/checkm2_db"
+checkm2_db : "/work/river/Databases/checkm2/CheckM2_database/uniref100.KO.1.dmnd"
+bakta_db : "/work/river/Databases/Bakta2/db/"

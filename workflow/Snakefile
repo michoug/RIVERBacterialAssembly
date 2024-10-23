@@ -15,7 +15,6 @@ include:
 rule assembly:
     input:
         os.path.join(RESULTS_DIR, "rawReads/concatenated_reads.fastq.gz"),
-        os.path.join(RESULTS_DIR, "filteredReads/filtered_reads.fastq"),
         expand(os.path.join(RESULTS_DIR, "assemblies/flye_pre.fasta")),
         expand(os.path.join(RESULTS_DIR, "assemblies/raven_pre.fasta")),
         os.path.join(RESULTS_DIR, "stats/stats_assemblies.txt"),
@@ -32,25 +31,56 @@ rule concatenate_reads:
 	shell:
 		"cat {input} > {output}"
 
-rule filter:
+# rule filter_fitlong:
+#     input:
+#         rules.concatenate_reads.output
+#     output:
+#         temp(os.path.join(RESULTS_DIR, "filteredReads/filtered_reads.fastq"))
+#     conda:
+#         os.path.join(ENV_DIR, "filter_reads.yaml")
+#     params:
+#         reads_size = config["reads_size"]
+#     log:
+#         out=os.path.join(RESULTS_DIR, "logs/filter.out.log"),
+#         err=os.path.join(RESULTS_DIR, "logs/filter.err.log")
+#     shell:
+#         "(date && filtlong --min_length {params.reads_size} --keep_percent 90 {input} > {output} && date) 2> {log.err} > {log.out}"
+
+rule filter_porechop:
     input:
-        os.path.join(RESULTS_DIR, "rawReads/concatenated_reads.fastq.gz")
+        reads=rules.concatenate_reads.output
     output:
-        temp(os.path.join(RESULTS_DIR, "filteredReads/filtered_reads.fastq"))
+        temp(os.path.join(RESULTS_DIR, "filteredReads/filtered_reads_adapter_trimmed.fastq.gz")),
+    log:
+        os.path.join(RESULTS_DIR, "logs/filter_porechop.log")
     conda:
-        os.path.join(ENV_DIR, "filtlong.yaml")
+        os.path.join(ENV_DIR, "filter_reads.yaml")
+    threads: 15
+    shell:
+        """
+        (date && porechop -i {input.reads} -o {output} -t {threads}) &> {log}
+        """
+
+rule filter_chopper:
+    input:
+        reads=rules.filter_porechop.output
+    output:
+        temp(os.path.join(RESULTS_DIR, "filteredReads/filtered_reads_chopper.fastq.gz"))
+    log:
+        os.path.join(RESULTS_DIR, "logs/filter_reads.log")
+    conda:
+        os.path.join(ENV_DIR, "filter_reads.yaml")
     params:
         reads_size = config["reads_size"]
-    log:
-        out=os.path.join(RESULTS_DIR, "logs/filter.out.log"),
-        err=os.path.join(RESULTS_DIR, "logs/filter.err.log")
+    threads: 15
     shell:
-        "(date && filtlong --min_length {params.reads_size} --keep_percent 90 {input} > {output} && date) 2> {log.err} > {log.out}"
-
+        """
+        (date && chopper -q 10 -l {params.reads_size} -i {input.reads} --threads {threads} | pigz -p {threads} > {output} ) &> {log}
+        """
 
 rule flye:
     input:
-        rules.filter.output
+        rules.filter_chopper.output
     output:
         folder = temp(directory(os.path.join(RESULTS_DIR, "flye/sample"))),
         fasta = os.path.join(RESULTS_DIR, "assemblies/flye_pre.fasta")
@@ -71,7 +101,7 @@ rule flye:
 
 rule raven:
     input:
-        rules.filter.output
+        rules.filter_chopper.output
     output:
         fasta=os.path.join(RESULTS_DIR, "assemblies/raven_pre.fasta")
     log:
@@ -89,7 +119,7 @@ rule raven:
 rule medaka:
     input:
         fasta=os.path.join(RESULTS_DIR, "assemblies/{assembly}_pre.fasta"),
-        reads=rules.filter.output
+        reads=rules.filter_chopper.output
     output:
         fasta = os.path.join(RESULTS_DIR, "assemblies/{assembly}_clean.fasta"),
         folder = temp(directory(os.path.join(RESULTS_DIR, "assemblies/{assembly}_medaka")))
